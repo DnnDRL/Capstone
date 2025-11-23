@@ -187,7 +187,8 @@ void handleSensorData() {
   json += "\"sim_provider\":\"Globe\"";  
   json += "}";
 
-  server.send(200, "application/json", json);
+server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+server.send(200, "application/json", json);
   Serial.println("📤 JSON Sent: " + json);
 }
 
@@ -196,7 +197,8 @@ void handleCheckCredit() {
   String json = "{";
   json += "\"sim_credit\":\"" + simCredit + "\"";
   json += "}";
-  server.send(200, "application/json", json);
+server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+server.send(200, "application/json", json);
   Serial.println("📤 Credit check triggered: " + json);
 }
 
@@ -315,7 +317,7 @@ void loop() {
       smsSent = true;
       pauseMode = true;
       Serial.println("🚨 Fire detected! Entering pause mode for SMS...");
-      String msg = "⚠️ Emergency warning: Fire detected, leave the area now! Temp: " + String(temp, 1) + "C, Lat: " + String(lastLat, 6) + ", Lon: " + String(lastLon, 6);
+      String msg = "Emergency warning: Fire detected, leave the area now! Temp: " + String(temp, 1) + "C, Lat: " + String(lastLat, 6) + ", Lon: " + String(lastLon, 6);
       if (sendSMS("+639758488578", msg)) {
         Serial.println("✅ SMS sent! Exiting pause mode.");
       } else {
