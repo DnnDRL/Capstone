@@ -13,7 +13,7 @@ const char* password = "08201979";
 #define DHTTYPE DHT11
 const int mq2Pin = 32;
 const int flamePin = 33;
-const int buzzerPin = 25; 
+const int buzzerPin = 25;  
 
 // === GPS and GSM Pins ===
 #define GPS_RX 13
@@ -52,7 +52,6 @@ bool sendSMS(String number, String message) {
     return false;
   }
 
-  // Set SMSC for Globe
   sim800.println("AT+CSCA=\"+639170000100\"");
   delay(1000);
   if (!sim800.find("OK")) {
@@ -83,7 +82,6 @@ bool sendSMS(String number, String message) {
 
   if (response.indexOf("+CMGS") != -1) {
     Serial.println("✅ SMS sent successfully!");
-    // Balance update by subtracting ~1 peso for each sms
     float currentBalance = simCredit.toFloat();
     if (currentBalance > 0) {
       simCredit = String(currentBalance - 1.0, 1);
@@ -120,7 +118,7 @@ String getSimNumber() {
         number.trim(); 
         if (number.startsWith("\"")) number = number.substring(1);
         if (number.endsWith("\"")) number = number.substring(0, number.length() - 1);
-        // Format to 09 if starts with +63 or 63
+        if (number.startsWith("+63")) {
           number = "0" + number.substring(3);
         } else if (number.startsWith("63")) {
           number = "0" + number.substring(2);
@@ -145,10 +143,10 @@ void checkSimCredit() {
 
   Serial.println("USSD Response: " + response);  
 
-  if (response.indexOf("+CUSD: 1") != -1 && response.indexOf("BAL") != -1) { 
+  if (response.indexOf("+CUSD: 1") != -1 && response.indexOf("BAL") != -1) {  
     int start = response.indexOf("BAL");
     if (start != -1) {
-      start += 4;
+      start += 4;  
       int end = start;
       while (end < response.length() && (response[end] >= '0' && response[end] <= '9' || response[end] == '.')) {
         end++;  
@@ -292,7 +290,6 @@ void loop() {
     smoke = digitalRead(mq2Pin);
   }
 
-  // Control buzzer - beep when flame OR smoke is detected
   if (flame == LOW || smoke == LOW) {
     digitalWrite(buzzerPin, HIGH);
   } else {
@@ -318,10 +315,7 @@ void loop() {
       smsSent = true;
       pauseMode = true;
       Serial.println("🚨 Fire detected! Entering pause mode for SMS...");
-      String msg = "Fire Detected! Evacuate Immediately! "
-                    "Temp: " + String(temp, 1) + "C | "
-                    "Lat: " + String(lastLat, 6) + ", "
-                    "Lon: " + String(lastLon, 6);
+      String msg = "⚠️ Emergency warning: Fire detected, leave the area now! Temp: " + String(temp, 1) + "C, Lat: " + String(lastLat, 6) + ", Lon: " + String(lastLon, 6);
       if (sendSMS("+639758488578", msg)) {
         Serial.println("✅ SMS sent! Exiting pause mode.");
       } else {
