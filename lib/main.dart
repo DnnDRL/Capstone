@@ -37,7 +37,6 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
   late TabController _tabController;
   GoogleMapController? mapController;
 
-  // Replace with your ESP32 IP
   final String espUrl = 'http://192.168.100.235/data';
 
   LatLng? location;
@@ -68,7 +67,7 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
 
     try {
       const username = 'admin';
-      const password = 'esp32pass';
+      const password = 'ESP23pass';
       final basicAuth =
           'Basic ' + base64Encode(utf8.encode('$username:$password'));
 
@@ -102,8 +101,7 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
         setState(() {
           sensorData = Map<String, dynamic>.from(data);
           if (lat != null && lng != null) {
-            final newLoc = LatLng(lat, lng);
-            location = newLoc;
+            location = LatLng(lat, lng);
             _moveMapCameraTo(location!);
           }
           final simRaw = (data['sim_credit'] ?? 'Unknown').toString();
@@ -129,8 +127,7 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
       await mapController!.animateCamera(CameraUpdate.newCameraPosition(
         CameraPosition(target: target, zoom: 16),
       ));
-    } catch (e) {
-    }
+    } catch (_) {}
   }
 
   @override
@@ -170,7 +167,6 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
     );
   }
 
-  // --- FOOTER ---
   Widget _withFooter(Widget child) {
     return Column(
       children: [
@@ -337,17 +333,16 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
               const SizedBox(height: 5),
               Text('Provider: $simProvider',
                   style: const TextStyle(color: Colors.white70, fontSize: 14)),
-                  
- const SizedBox(height: 15),
-            const Text(
-              '⚠️ Restart the app after topping up to view your new balance.',
-              style: TextStyle(color: Colors.yellowAccent, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
-          ],
+              const SizedBox(height: 15),
+              const Text(
+                '⚠️ Restart the app after topping up to view your new balance.',
+                style: TextStyle(color: Colors.yellowAccent, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
-    }
+}
