@@ -36,6 +36,10 @@ const unsigned long printInterval = 2000;
 bool pauseMode = false;
 String simCredit = "Unknown";
 
+// === security of webserver ===
+const char* webUser = "admin";    
+const char* webPass = "ESP23pass";
+
 // === Helper Functions ===
 bool sendSMS(String number, String message) {
   Serial.println("📩 Sending SMS...");
@@ -98,38 +102,6 @@ bool sendSMS(String number, String message) {
   }
 }
 
-String getSimNumber() {
-  Serial.println("📱 Getting SIM Number...");
-  sim800.println("AT+CNUM");
-  delay(2000);
-  String response = "";
-  while (sim800.available()) {
-    char c = sim800.read();
-    response += c;
-  }
-  Serial.println("SIM Number Response: " + response);
-  int start = response.indexOf("+CNUM:");
-  if (start != -1) {
-    int comma1 = response.indexOf(",", start);
-    if (comma1 != -1) {
-      int comma2 = response.indexOf(",", comma1 + 1);
-      if (comma2 != -1) {
-        String number = response.substring(comma1 + 1, comma2);
-        number.trim(); 
-        if (number.startsWith("\"")) number = number.substring(1);
-        if (number.endsWith("\"")) number = number.substring(0, number.length() - 1);
-        if (number.startsWith("+63")) {
-          number = "0" + number.substring(3);
-        } else if (number.startsWith("63")) {
-          number = "0" + number.substring(2);
-        }
-        if (number.length() > 0) return number;
-      }
-    }
-  }
-  return "Unknown";
-}
-
 void checkSimCredit() {
   Serial.println("💰 Checking SIM credit...");
   sim800.println("AT+CUSD=1,\"*143#\"");  
@@ -172,7 +144,6 @@ void handleSensorData() {
   int smoke = digitalRead(mq2Pin);
   int flame = digitalRead(flamePin);
 
-  // Hardcoded SIM number since AT+CNUM doesn't work
   String simNumber = "09456453820";
 
   String json = "{";
@@ -254,17 +225,33 @@ void setup() {
     delay(500);
     Serial.print(".");
   }
+  Serial.println("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
   Serial.println("✅ WiFi Connected!");
   Serial.print("📶 IP: ");
   Serial.println(WiFi.localIP());
 
-  server.on("/data", handleSensorData);
-  server.on("/checkcredit", handleCheckCredit);
+  server.on("/data", []() {                               
+    if (!server.authenticate(webUser, webPass)) {
+      return server.requestAuthentication();
+    }
+    handleSensorData();
+  });
+
+  server.on("/checkcredit", []() {                         
+    if (!server.authenticate(webUser, webPass)) {
+      return server.requestAuthentication();
+    }
+    handleCheckCredit();
+  });
+
   server.begin();
   Serial.println("🌐 Web Server started!");
-  Serial.print("Access at: http://");
-  Serial.print(WiFi.localIP());
-  Serial.println("/data or /checkcredit");
 }
 
 // === LOOP ===
