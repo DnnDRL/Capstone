@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:syncfusion_flutter_gauges/gauges.dart';
 
-/// 🔑 Your Google API Key (used on platform side - keep it out of source ideally)
 const String googleApiKey = 'AIzaSyCA2yxUxy3azVahnOnHPMEFs4IaRUOwez8';
 
 void main() => runApp(FireAlarmApp());
@@ -38,7 +37,7 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
   late TabController _tabController;
   GoogleMapController? mapController;
 
-  // Replace with your ESP32 IP 
+  // Replace with your ESP32 IP
   final String espUrl = 'http://192.168.100.235/data';
 
   LatLng? location;
@@ -68,46 +67,46 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
     setState(() => isLoading = true);
 
     try {
-      final response =
-          await http.get(Uri.parse(espUrl)).timeout(const Duration(seconds: 5));
+      const username = 'admin';
+      const password = 'esp32pass';
+      final basicAuth =
+          'Basic ' + base64Encode(utf8.encode('$username:$password'));
+
+      final response = await http
+          .get(
+            Uri.parse(espUrl),
+            headers: {
+              'Authorization': basicAuth,
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        // Defensive parsing: ensure types are converted correctly
+
         double? lat;
         double? lng;
-        try {
-          if (data['latitude'] != null) {
-            lat = (data['latitude'] is num)
-                ? data['latitude'].toDouble()
-                : double.tryParse(data['latitude'].toString());
-          }
-          if (data['longitude'] != null) {
-            lng = (data['longitude'] is num)
-                ? data['longitude'].toDouble()
-                : double.tryParse(data['longitude'].toString());
-          }
-        } catch (_) {
-          lat = null;
-          lng = null;
+
+        if (data['latitude'] != null) {
+          lat = (data['latitude'] is num)
+              ? data['latitude'].toDouble()
+              : double.tryParse(data['latitude'].toString());
+        }
+        if (data['longitude'] != null) {
+          lng = (data['longitude'] is num)
+              ? data['longitude'].toDouble()
+              : double.tryParse(data['longitude'].toString());
         }
 
         setState(() {
           sensorData = Map<String, dynamic>.from(data);
           if (lat != null && lng != null) {
             final newLoc = LatLng(lat, lng);
-            if (location == null ||
-                (location!.latitude - newLoc.latitude).abs() > 0.00001 ||
-                (location!.longitude - newLoc.longitude).abs() > 0.00001) {
-              location = newLoc;
-              _moveMapCameraTo(location!);
-            } else {
-              location = newLoc;
-            }
+            location = newLoc;
+            _moveMapCameraTo(location!);
           }
-          final simRaw =
-              (data['sim_credit'] ?? data['simCredit'] ?? data['sim'] ?? 'Unknown')
-                  .toString();
+          final simRaw = (data['sim_credit'] ?? 'Unknown').toString();
           simBalanceRaw = simRaw;
           final numeric = RegExp(r'(\d+(\.\d+)?)').firstMatch(simRaw);
           if (numeric != null) {
@@ -131,48 +130,34 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
         CameraPosition(target: target, zoom: 16),
       ));
     } catch (e) {
-      // ignore if map not ready
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final temperature = (sensorData?['temperature'] != null)
-        ? (sensorData!['temperature'] is num
-            ? (sensorData!['temperature'] as num).toDouble()
-            : double.tryParse(sensorData!['temperature'].toString()) ?? 0.0)
-        : 0.0;
-    final humidity = (sensorData?['humidity'] != null)
-        ? (sensorData!['humidity'] is num
-            ? (sensorData!['humidity'] as num).toDouble()
-            : double.tryParse(sensorData!['humidity'].toString()) ?? 0.0)
-        : 0.0;
-
+    final temperature = (sensorData?['temperature'] ?? 0.0).toDouble();
+    final humidity = (sensorData?['humidity'] ?? 0.0).toDouble();
     final flameStr = (sensorData?['flame'] ?? '').toString().toUpperCase();
     final smokeStr = (sensorData?['smoke'] ?? '').toString().toUpperCase();
-
     final flame = flameStr.contains('DETECT') ? 100.0 : 0.0;
     final smoke = smokeStr.contains('DETECT') ? 100.0 : 0.0;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.greenAccent.shade700,
-        title: const Text(
-          'Fire Alarm Monitoring',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        title: const Text('Fire Alarm Monitoring',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.greenAccent.shade200,
+          tabs: const [
+            Tab(icon: Icon(Icons.sensors), text: 'Monitoring'),
+            Tab(icon: Icon(Icons.map), text: 'Map'),
+            Tab(icon: Icon(Icons.sim_card), text: 'Sim Credit'),
+          ],
         ),
-          bottom: TabBar(
-            controller: _tabController,
-            indicatorColor: Colors.white,
-            labelColor: Colors.white,                    
-            unselectedLabelColor: Colors.greenAccent.shade200,
-            tabs: const [
-              Tab(icon: Icon(Icons.sensors), text: 'Monitoring'),
-              Tab(icon: Icon(Icons.map), text: 'Map'),
-              Tab(icon: Icon(Icons.sim_card), text: 'Sim Credit'),
-            ],
-          ),
-
       ),
       body: TabBarView(
         controller: _tabController,
@@ -196,15 +181,11 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
           alignment: Alignment.center,
           child: Column(
             children: const [
-              Text(
-                'For more information and contact us:',
-                style: TextStyle(color: Colors.white60, fontSize: 13),
-              ),
+              Text('For more information and contact us:',
+                  style: TextStyle(color: Colors.white60, fontSize: 13)),
               SizedBox(height: 4),
-              Text(
-                'firealarmmonitor@gmail.com',
-                style: TextStyle(color: Colors.greenAccent, fontSize: 13),
-              ),
+              Text('firealarmmonitor@gmail.com',
+                  style: TextStyle(color: Colors.greenAccent, fontSize: 13)),
             ],
           ),
         ),
@@ -212,7 +193,6 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
     );
   }
 
-  // --- MONITORING TAB ---
   Widget _buildMonitoringTab(
       double temp, double humid, double flame, double smoke) {
     return SingleChildScrollView(
@@ -243,11 +223,9 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70),
-            ),
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 10),
             SizedBox(
               width: 120,
@@ -294,7 +272,6 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
     );
   }
 
-  // --- MAP TAB (Google Maps) ---
   Widget _buildMapTab() {
     if (location == null) {
       return const Center(
@@ -303,10 +280,7 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
           children: [
             CircularProgressIndicator(color: Colors.greenAccent),
             SizedBox(height: 20),
-            Text(
-              'Waiting for GPS data...',
-              style: TextStyle(color: Colors.white70),
-            ),
+            Text('Waiting for GPS data...', style: TextStyle(color: Colors.white70)),
           ],
         ),
       );
@@ -332,44 +306,39 @@ class _FireAlarmHomeState extends State<FireAlarmHome>
     );
   }
 
- // --- SIM CREDIT TAB ---
-Widget _buildSimCreditTab() {
-  final simNumber = (sensorData?['sim_number'] ?? sensorData?['sim'] ?? 'Unknown').toString();
-  final simProvider = (sensorData?['sim_provider'] ?? 'Unknown').toString();
+  Widget _buildSimCreditTab() {
+    final simNumber = (sensorData?['sim_number'] ?? 'Unknown').toString();
+    final simProvider = (sensorData?['sim_provider'] ?? 'Unknown').toString();
 
-  return Center(
-    child: Card(
-      color: const Color(0xFF1E1E1E),
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      margin: const EdgeInsets.all(40),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 60),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Sim Credit Balance',
-                style: TextStyle(fontSize: 18, color: Colors.white70)),
-            const SizedBox(height: 15),
-            Text(
-              simBalanceRaw.toLowerCase() != 'unknown' &&
-                      simBalanceRaw.toLowerCase() != 'gsm failed'
-                  ? '₱ ${simBalance.toStringAsFixed(2)}'
-                  : simBalanceRaw,
-              style: const TextStyle(
-                  fontSize: 36, fontWeight: FontWeight.bold, color: Colors.greenAccent),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'SIM Number: $simNumber',
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              'Provider: $simProvider',
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-            const SizedBox(height: 15),
+    return Center(
+      child: Card(
+        color: const Color(0xFF1E1E1E),
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        margin: const EdgeInsets.all(40),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 60),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Sim Credit Balance',
+                  style: TextStyle(fontSize: 18, color: Colors.white70)),
+              const SizedBox(height: 15),
+              Text(
+                simBalanceRaw.toLowerCase() != 'unknown'
+                    ? '₱ ${simBalance.toStringAsFixed(2)}'
+                    : simBalanceRaw,
+                style: const TextStyle(
+                    fontSize: 36, fontWeight: FontWeight.bold, color: Colors.greenAccent),
+              ),
+              const SizedBox(height: 10),
+              Text('SIM Number: $simNumber',
+                  style: const TextStyle(color: Colors.white70, fontSize: 14)),
+              const SizedBox(height: 5),
+              Text('Provider: $simProvider',
+                  style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                  
+ const SizedBox(height: 15),
             const Text(
               '⚠️ Restart the app after topping up to view your new balance.',
               style: TextStyle(color: Colors.yellowAccent, fontSize: 13),
@@ -380,5 +349,5 @@ Widget _buildSimCreditTab() {
       ),
     ),
   );
-}
+  }
     }
